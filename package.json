@@ -1,0 +1,11 @@
+{
+  "name": "aplicativo-da-conciliacao",
+  "version": "1.0.0",
+  "description": "Conciliação bancária offline",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

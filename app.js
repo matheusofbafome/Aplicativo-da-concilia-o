@@ -89,16 +89,20 @@ function parseMoney(s){
 function toISODate(s){
   if (!s) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // tenta dd/mm/aaaa
-  const m1 = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
-  if (m1){
-    const [_,d,mo,y]=m1;
-    return `${y.padStart(4,'0')}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  }
-  // tenta mm/dd/aaaa
-  const m2 = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
-  if (m2){
-    const [_,mo,d,y]=m2;
+  // tenta formatos dd/mm/aaaa ou mm/dd/aaaa
+  const m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (m){
+    const [_,a,b,y]=m;
+    if (Number(a) > 12) { // dd/mm
+      const d = a, mo = b;
+      return `${y.padStart(4,'0')}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    if (Number(b) > 12) { // mm/dd
+      const mo = a, d = b;
+      return `${y.padStart(4,'0')}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    // ambos <=12: assume dd/mm
+    const d = a, mo = b;
     return `${y.padStart(4,'0')}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
   }
   // fallback Date.parse
@@ -148,14 +152,16 @@ function download(filename, content, type='text/plain'){
 }
 
 /* ========= UI: carregamento inicial ========= */
-(async function init(){
-  await idbOpen();
-  const all = await idbGetAll();
-  State.raw = all;
-  refreshContaOptions();
-  applyFilters();
-  bindUI();
-})();
+if (typeof window !== 'undefined') {
+  (async function init(){
+    await idbOpen();
+    const all = await idbGetAll();
+    State.raw = all;
+    refreshContaOptions();
+    applyFilters();
+    bindUI();
+  })();
+}
 
 /* ========= UI: tabela ========= */
 function render(){
@@ -199,9 +205,9 @@ function render(){
       </td>
       <td data-k="observacoes" contenteditable="true">${it.observacoes||''}</td>
       <td class="actions">
-        <button data-act="save" title="Salvar linha">💾</button>
-        <button data-act="dup" title="Duplicar">📄</button>
-        <button data-act="del" class="btn-danger" title="Excluir">🗑️</button>
+        <button data-act="save" title="Salvar linha" aria-label="Salvar linha">💾</button>
+        <button data-act="dup" title="Duplicar" aria-label="Duplicar">📄</button>
+        <button data-act="del" class="btn-danger" title="Excluir" aria-label="Excluir">🗑️</button>
       </td>
     `;
     tr.dataset.id = it.id;
@@ -619,9 +625,14 @@ async function suggestConciliations(){
 
 /* ========= Estilos visuais para status nos cabeçalhos (opcional) ========= */
 
-if ('serviceWorker' in navigator) {
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js');
   });
+}
+
+// Export functions for tests (Node environment)
+if (typeof module !== 'undefined') {
+  module.exports = { parseCSV, parseMoney, toISODate };
 }
 
