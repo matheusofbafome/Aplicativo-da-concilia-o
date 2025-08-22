@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Conciliação Bancária • Offline</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="flex" style="justify-content:space-between; align-items:flex-start">
+      <div>
+        <h1 class="logo">Conciliação Bancária • Offline <span class="pill">Local</span></h1>
+        <small>Substitua sua planilha por um painel com filtros, edição e exportação — sem internet.</small>
+      </div>
+      <div class="flex">
+        <button class="btn-soft" id="btnModel">Baixar modelo CSV</button>
+        <button class="btn-primary" id="btnImport">Importar</button>
+        <input type="file" id="fileInput" accept=".csv,.json" class="hidden" />
+        <button class="btn-soft" id="btnExportCSV">Exportar CSV</button>
+        <button class="btn-soft" id="btnBackup">Backup JSON</button>
+        <button class="btn-soft" id="btnRestore">Restaurar JSON</button>
+        <input type="file" id="restoreInput" accept=".json" class="hidden" />
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="btnAdd" title="Adicionar lançamento">+ Lançamento</button>
+      <button id="btnSuggest" title="Sugerir conciliações simples">Sugerir conciliações</button>
+      <button id="btnNormalize" title="Normalizar campos (opcional)">Normalizar colunas</button>
+      <button id="btnClear" class="btn-outline danger">Limpar base</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel filters">
+      <h3>Filtros</h3>
+      <div class="content">
+        <div class="row">
+          <input id="fSearch" placeholder="Buscar texto (descrição, documento, conta)..." />
+          <select id="fStatus">
+            <option value="">Status — todos</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM ANDAMENTO">Em andamento</option>
+            <option value="CONCILIADO">Conciliado</option>
+            <option value="DIVERGÊNCIA">Divergência</option>
+          </select>
+        </div>
+        <div class="row">
+          <select id="fTipo">
+            <option value="">Tipo — ambos</option>
+            <option value="CRÉDITO">Crédito</option>
+            <option value="DÉBITO">Débito</option>
+          </select>
+          <select id="fConta">
+            <option value="">Conta — todas</option>
+          </select>
+        </div>
+        <div class="row">
+          <input id="fDataIni" type="date" />
+          <input id="fDataFim" type="date" />
+        </div>
+        <div class="row">
+          <input id="fValorMin" type="number" step="0.01" placeholder="Valor mínimo" />
+          <input id="fValorMax" type="number" step="0.01" placeholder="Valor máximo" />
+        </div>
+        <div class="row">
+          <button id="btnApplyFilters" class="w100">Aplicar filtros</button>
+        </div>
+        <hr style="border-color:var(--line); opacity:.4; margin:10px 0">
+        <div class="kpis">
+          <div class="k"><div class="h">Créditos</div><div class="v" id="kCreditos">R$ 0,00</div></div>
+          <div class="k"><div class="h">Débitos</div><div class="v" id="kDebitos">R$ 0,00</div></div>
+          <div class="k"><div class="h">Saldo</div><div class="v" id="kSaldo">R$ 0,00</div></div>
+          <div class="k"><div class="h">% Conciliado</div><div class="v" id="kConciliado">0%</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Registros</h3>
+      <div class="table-wrap">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th data-key="data" class="sortable">Data</th>
+              <th data-key="conta" class="sortable">Conta</th>
+              <th data-key="descricao" class="sortable">Descrição</th>
+              <th data-key="documento" class="sortable">Documento</th>
+              <th data-key="tipo" class="sortable">Tipo</th>
+              <th data-key="valor" class="sortable">Valor</th>
+              <th data-key="status" class="sortable">Status</th>
+              <th data-key="observacoes">Observações</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="muted nowrap"><span id="countShown">0</span>/<span id="countTotal">0</span> itens</span>
+        <label class="muted">por página
+          <select id="pageSize">
+            <option>25</option><option>50</option><option>100</option><option>200</option>
+          </select>
+        </label>
+        <button id="prevPage">◀</button>
+        <span id="pageInfo" class="muted">1/1</span>
+        <button id="nextPage">▶</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dialogo: Mapeamento CSV -->
+  <dialog id="dlgMap">
+    <div class="dlg-head"><strong>Mapear colunas do CSV</strong></div>
+    <div class="dlg-body">
+      <div class="help">Vincule cada <em>campo do sistema</em> à coluna do seu CSV. Campos não mapeados ficam vazios. Dica: exporte do Excel como <code class="inline">CSV (UTF-8)</code>.</div>
+      <div class="map-grid" id="mapGrid"></div>
+      <div class="flex" style="justify-content: flex-end; margin-top:12px">
+        <button id="cancelMap" class="btn-outline">Cancelar</button>
+        <button id="confirmMap" class="btn-primary">Importar dados</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Dialogo: Normalização -->
+  <dialog id="dlgNormalize">
+    <div class="dlg-head"><strong>Normalizar colunas</strong></div>
+    <div class="dlg-body">
+      <p class="help">Ajustes rápidos pós-importação:</p>
+      <label class="flex"><input type="checkbox" id="nmzTrim" checked/> Remover espaços extras</label>
+      <label class="flex"><input type="checkbox" id="nmzUpperTipo" checked/> Padronizar Tipo para CRÉDITO/DÉBITO</label>
+      <label class="flex"><input type="checkbox" id="nmzStatusMap" checked/> Mapear Status para PENDENTE/EM ANDAMENTO/CONCILIADO/DIVERGÊNCIA</label>
+      <label class="flex"><input type="checkbox" id="nmzDate" checked/> Converter datas para AAAA-MM-DD (tenta dd/mm/aaaa, mm/dd/aaaa)</label>
+      <div class="flex" style="justify-content:flex-end; margin-top:12px">
+        <button id="cancelNmz" class="btn-outline">Fechar</button>
+        <button id="applyNmz" class="btn-primary">Aplicar</button>
+      </div>
+    </div>
+  </dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
